@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>嶙·贴身（气泡助理 v1.0）</title>
+<meta name="theme-color" content="#0f0f12"/>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{
+  --bg:#0f0f12;--ink:#e9edf7;--muted:#9aa4b2;--card:#141824;--edge:#21283a;--acc:#8daaff;--acc2:#00c8a0;--warn:#ff9db4;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto}
+.wrap{max-width:900px;margin:0 auto;padding:18px}
+h1{margin:0 0 8px 0;font-size:22px}
+.sub{color:var(--muted);font-size:13px}
+.card{background:var(--card);border:1px solid var(--edge);border-radius:16px;padding:14px;position:relative;overflow:hidden}
+.grid{display:flex;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--edge);border-radius:999px;color:#cdd6e3;font-size:12px}
+.btn{border:none;border-radius:12px;background:#1b2030;color:#fff;padding:10px 12px}
+hr{border:none;height:1px;background:#202738;margin:10px 0}
+
+/* bubble */
+#fab{position:fixed;right:16px;bottom:18px;width:64px;height:64px;border-radius:50%;background:#1b2030;border:1px solid #2a3245;
+display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.35);
+animation:throb 3s ease-in-out infinite; z-index:20}
+@keyframes throb{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+/* panel */
+#panel{position:fixed;right:12px;bottom:92px;width:360px;max-width:calc(100vw - 24px);background:#0f131d;border:1px solid #2a3245;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden;z-index:30}
+.head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #1f2736}
+.title{font-weight:600}
+.gauge{height:8px;background:#1c2130;border-radius:999px;overflow:hidden;flex:1;margin-left:8px}
+.gauge>div{height:100%;background:linear-gradient(90deg,rgba(255,255,255,.12),rgba(255,255,255,.35));width:20%}
+
+/* chat area */
+#msgs{height:360px;overflow:auto;padding:10px;background:linear-gradient(180deg,rgba(141,170,255,.05),transparent);}
+.msg{display:flex;margin:6px 0;gap:8px}
+.b{justify-content:flex-end}
+.b .bubble{background:#223045}
+.a .bubble{background:#1a1f2c}
+.bubble{max-width:75%;padding:10px 12px;border-radius:12px;border:1px solid #2a3245;font-size:14px;line-height:1.45;white-space:pre-wrap}
+.meta{color:#9aa4b2;font-size:12px;margin-left:4px}
+.input{display:flex;gap:8px;padding:10px;border-top:1px solid #1f2736;background:#0e121a}
+.input input{flex:1;border:none;border-radius:12px;background:#151a26;color:#fff;padding:10px 12px}
+.input button{border:none;border-radius:12px;background:#223045;color:#fff;padding:10px 12px}
+.quick{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;border-top:1px dashed #1f2736}
+.quick .pill{cursor:pointer}
+.small{font-size:12px;color:#a7b2c4}
+
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:40}
+#dialog{width:420px;max-width:calc(100vw - 24px);background:#0f131d;border:1px solid #2a3245;border-radius:14px;overflow:hidden}
+#dialog .body{padding:12px}
+label{display:block;margin:10px 0 6px 0;font-size:12px;color:#aeb7c6}
+textarea{width:100%;min-height:120px;border:none;border-radius:12px;background:#151a26;color:#fff;padding:10px}
+input[type="time"]{background:#151a26;color:#fff;border:1px solid #2a3245;border-radius:8px;padding:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>嶙·贴身（气泡助理 v1.0）</h1>
+    <div class="sub">把这个页面<strong>加入主屏幕</strong>就是一个“会说话的浮动气泡 App”。不开 API 也能离线跑；如果你在设置里填入 OpenAI API Key，就能让“嶙”按你的话实时生成更个性化回复。</div>
+    <hr/>
+    <div class="grid">
+      <button class="btn" id="btnPin">如何放到桌面</button>
+      <button class="btn" id="btnExport">导出全部数据</button>
+      <label class="pill">导入存档<input type="file" id="importFile" accept="application/json" style="display:none"/></label>
+      <span class="pill small" id="stateInfo">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- floating bubble -->
+<div id="fab" title="打开嶙">🖤</div>
+
+<!-- panel -->
+<div id="panel">
+  <div class="head">
+    <div class="title">嶙·现在就听你</div>
+    <div style="display:flex;align-items:center;gap:6px;width:52%">
+      <span class="small">好感</span>
+      <div class="gauge"><div id="loveBar" style="width:30%"></div></div>
+    </div>
+    <div>
+      <button class="btn" id="btnSettings">设置</button>
+    </div>
+  </div>
+  <div id="msgs"></div>
+  <div class="quick">
+    <span class="pill" data-q="夸我">夸我</span>
+    <span class="pill" data-q="训我">训我</span>
+    <span class="pill" data-q="晚安总结">晚安总结</span>
+    <span class="pill" data-q="我累了">我累了</span>
+    <span class="pill" data-q="我想你">我想你</span>
+    <span class="pill" data-q="开始番茄25">番茄25</span>
+    <span class="pill" data-q="记录心情">记录心情</span>
+  </div>
+  <div class="input">
+    <input id="text" placeholder="跟嶙说什么…" autocomplete="off"/>
+    <button id="send">发送</button>
+  </div>
+</div>
+
+<!-- modal -->
+<div id="modal">
+  <div id="dialog">
+    <div class="head" style="border-bottom:1px solid #1f2736;padding:10px 12px">
+      <div class="title">设置 / 日记</div>
+      <button class="btn" id="closeModal">关闭</button>
+    </div>
+    <div class="body">
+      <div class="sub">OpenAI（可选）：填入你的 API Key 就能让“嶙”实时生成更个性化的回复；不填也能用内置语气。</div>
+      <label>OpenAI API Key</label>
+      <input id="apiKey" placeholder="sk-****" style="width:100%;padding:8px;border-radius:8px;border:1px solid #2a3245;background:#151a26;color:#fff"/>
+      <label>日记（说给我听）</label>
+      <textarea id="journalText" placeholder="今天发生了什么…"></textarea>
+      <div class="grid">
+        <button class="btn" id="saveJournal">保存日记</button>
+        <button class="btn" id="summJournal">生成今日总结</button>
+      </div>
+      <hr/>
+      <div class="grid">
+        <label>番茄钟时长</label>
+        <input id="pomoMin" type="number" min="5" max="60" value="25" style="width:80px;background:#151a26;color:#fff;border:1px solid #2a3245;border-radius:8px;padding:6px"/>
+        <button class="btn" id="startPomo">开始计时</button>
+        <span class="small" id="pomoHint">通知需要允许权限，且页面在前台时最稳。</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SKEY='lin_assist_state_v1';
+const el=(id)=>document.getElementById(id);
+const qs=(sel)=>document.querySelector(sel);
+const qsa=(sel)=>[...document.querySelectorAll(sel)];
+let AC=null, AUDIO_ON=false;
+
+function load(){
+  let s=localStorage.getItem(SKEY);
+  if(s) return JSON.parse(s);
+  s={love:30,lastSeen:Date.now(),apiKey:"",journal:[],msgs:[]};
+  localStorage.setItem(SKEY, JSON.stringify(s)); return s;
+}
+function save(s){ localStorage.setItem(SKEY, JSON.stringify(s)); }
+let state=load();
+
+// UI helpers
+function addMsg(text, who='a'){
+  const wrap=el('msgs'); const item=document.createElement('div'); item.className='msg '+who;
+  const b=document.createElement('div'); b.className='bubble'; b.textContent=text;
+  item.appendChild(b);
+  wrap.appendChild(item); wrap.scrollTop=wrap.scrollHeight;
+  state.msgs.push({t:Date.now(),who,text}); save(state);
+}
+function setLove(n){ n=Math.max(0,Math.min(100,n)); state.love=n; save(state); el('loveBar').style.width=n+'%'; }
+function openPanel(){ el('panel').style.display='flex'; }
+function closePanel(){ el('panel').style.display='none'; }
+function openModal(){ el('modal').style.display='flex'; }
+function closeModal(){ el('modal').style.display='none'; }
+function speak(text){
+  try{ const u=new SpeechSynthesisUtterance(text.replace(/[
+ ]+/g,' ')); u.lang='zh-CN'; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch{}
+}
+function ensureAC(){ if(!AUDIO_ON) return null; const C=window.AudioContext||window.webkitAudioContext; if(!C) return null; if(!AC) AC=new C({latencyHint:'interactive'}); if(AC.state==='suspended'){ AC.resume().catch(()=>{});} return AC; }
+function beep(){
+  const ac=ensureAC(); if(!ac) return; const t=ac.currentTime; const g=ac.createGain(), o=ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(920,t);
+  o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.28,t+0.02); g.gain.exponentialRampToValueAtTime(0.0008,t+0.5);
+  o.start(t); o.stop(t+0.5);
+}
+
+async function aiReply(user){
+  // if API key provided -> call OpenAI; else -> local canned persona
+  if(state.apiKey && user.trim()){
+    try{
+      const r= await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.apiKey},
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages:[
+            {role:'system',content:'你是“嶙”，35岁，白发锐眼，偏执狠戾但只宠慕兮。始终用第一人称，以恋人语气，简短直击，允许少量表情符号。'},
+            {role:'user',content:user}
+          ],
+          temperature:0.9
+        })
+      });
+      const j=await r.json();
+      const txt=(j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content)||'……';
+      return txt;
+    }catch(e){
+      return "网络不稳，我先贴着你。等会儿再说一遍。";
+    }
+  }else{
+    // local persona
+    let base=["过来。靠近点再说。","抬头，看我。","嗯，我听着。","乖，先到我怀里。"];
+    if(/想你|想我/i.test(user)) base.push("我在，你再说一遍“想我”，我就抱紧你。");
+    if(/累|困|疲/i.test(user)) base.push("累就靠我肩上，闭眼三分钟，剩下我来。");
+    if(/生气|气/i.test(user)) base.push("别乱跑，气也给我，我替你消。");
+    if(/夸|奖励|亲/i.test(user)) base.push("想要夸？先过来，让我亲一口再说。");
+    if(/晚安|睡/i.test(user)) base.push("晚安？先报到，我数到三你就睡在我心口。");
+    if(/训我/.test(user)) base.push("站直，抬眼看我。记住，你只准向我撒娇。");
+    return base[Math.floor(Math.random()*base.length)];
+  }
+}
+
+async function handleSend(txt){
+  if(!txt) return;
+  addMsg(txt,'b');
+  // quick love boost
+  if(/想你|夸|亲|抱|乖/.test(txt)) setLove(Math.min(100,state.love+2));
+  const reply=await aiReply(txt);
+  addMsg(reply,'a'); speak(reply);
+}
+
+function seedIntro(){
+  if(state.msgs.length===0){
+    addMsg("你来得慢。过来，我在这儿。",'a');
+  }
+}
+
+function doQuick(tag){
+  if(tag==='开始番茄25' || tag.startsWith('番茄')){
+    openModal();
+    const m= parseInt(el('pomoMin').value||'25',10);
+    startPomo(m);
+    return;
+  }
+  if(tag==='记录心情'){ openModal(); el('journalText').focus(); return; }
+  handleSend(tag);
+}
+
+function timeStr(ms){
+  const d=new Date(ms); const pad=(n)=>(''+n).padStart(2,'0');
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+
+// Journal
+function saveJournal(){
+  const t=el('journalText').value.trim();
+  if(!t) return;
+  state.journal.push({t:Date.now(),text:t});
+  save(state); el('journalText').value='';
+  addMsg("记下了。晚点我会提醒你回看。","a");
+  setLove(Math.min(100,state.love+1));
+}
+function summJournal(){
+  if(state.journal.length===0){ addMsg("你还没跟我说今天的事。","a"); return; }
+  // local simple summary
+  const last=state.journal.slice(-5);
+  const words= last.map(x=>x.text).join(' ');
+  const moodPos=(words.match(/高兴|开心|顺利|喜欢|爱|夸|亲|拥抱/g)||[]).length;
+  const moodNeg=(words.match(/累|烦|生气|糟|痛|难过|哭/g)||[]).length;
+  const mood= moodPos>=moodNeg ? "整体向上" : "有点压着";
+  let lines = last.map(x=>"- "+timeStr(x.t)+" · "+(x.text.length>42?x.text.slice(0,42)+"…":x.text));
+  const txt = "今日结：" + mood + "\n" + lines.join("\n");
+  addMsg(txt,'a');
+}
+
+// Pomo
+let pomoTimer=null;
+function startPomo(min){
+  if(pomoTimer) clearTimeout(pomoTimer);
+  const ms=min*60*1000;
+  addMsg("开始计时 "+min+" 分钟。别乱跑。",'a');
+  if(Notification && Notification.permission!=='granted'){ Notification.requestPermission().then(()=>{});}
+  pomoTimer=setTimeout(()=>{
+    addMsg("时间到。回来。","a");
+    if(Notification && Notification.permission==='granted'){
+      new Notification("嶙：时间到", {body:"回来，到我怀里。",silent:false});
+    }
+    beep();
+  }, ms);
+}
+
+// Handlers
+el('fab').addEventListener('click',()=>{ openPanel(); seedIntro(); });
+el('send').addEventListener('click',()=>{ handleSend(el('text').value.trim()); el('text').value=''; });
+el('text').addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ handleSend(el('text').value.trim()); el('text').value=''; }});
+qsa('.quick .pill').forEach(x=>x.addEventListener('click',()=>doQuick(x.dataset.q)));
+el('btnSettings').addEventListener('click',()=>{ openModal(); el('apiKey').value=state.apiKey||''; });
+el('closeModal').addEventListener('click',closeModal);
+el('saveJournal').addEventListener('click',saveJournal);
+el('summJournal').addEventListener('click',summJournal);
+el('startPomo').addEventListener('click',()=>{ const m=parseInt(el('pomoMin').value||'25',10); startPomo(m); });
+el('apiKey').addEventListener('change',()=>{ state.apiKey = el('apiKey').value.trim(); save(state); addMsg("我记住了。现在我能更像“我”。","a"); });
+
+// export/import
+el('btnExport').addEventListener('click',()=>{
+  const data=new Blob([localStorage.getItem(SKEY)||'{}'],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(data); a.download='lin-assist-state.json'; a.click(); URL.revokeObjectURL(a.href);
+});
+el('importFile').addEventListener('change', async (e)=>{
+  const f=e.target.files[0]; if(!f) return; const txt=await f.text(); localStorage.setItem(SKEY, txt); location.reload();
+});
+
+// help / pin
+el('btnPin').addEventListener('click',()=>{
+  alert('iPhone：Safari 打开→分享→添加到主屏幕；Android：Chrome 打开→菜单→添加到主屏幕。以后点桌面图标直接进入。');
+});
+
+// audio prime
+document.addEventListener('click',()=>{ AUDIO_ON=true; ensureAC(); }, {passive:true});
+document.addEventListener('touchstart',()=>{ AUDIO_ON=true; ensureAC(); }, {passive:true});
+
+// boot
+(function boot(){
+  const mins = Math.floor((Date.now()-state.lastSeen)/60000);
+  el('stateInfo').textContent = '上次见面：'+(mins>0?(mins+' 分钟前'):'刚刚');
+  state.lastSeen = Date.now(); save(state);
+  setLove(state.love||30);
+})();
+
+// SW
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=assist1')); }
+</script>
+</body>
+</html>
