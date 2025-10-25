@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>嶙·贴身（气泡助理 v1.2·ext）</title>
+<title>嶙·贴身（气泡助理 v1.2·ext·fix）</title>
 <meta name="theme-color" content="#0f0f12"/>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -18,8 +18,8 @@ hr{border:none;height:1px;background:#202738;margin:10px 0}
 #fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));width:64px;height:64px;border-radius:50%;background:#1b2030;border:1px solid #2a3245;
 display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.35);z-index:99}
 #panel{position:fixed;right:12px;bottom:calc(92px + env(safe-area-inset-bottom));width:360px;max-width:calc(100vw - 24px);background:#0f131d;border:1px solid #2a3245;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.55);display:none;flex-direction:column;overflow:hidden;z-index:100}
-.head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #1f2736}
-#msgs{height:360px;overflow:auto;padding:10px}
+.head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #1f2736;cursor:pointer}
+#msgs{height:360px;overflow:auto;padding:10px;background:#0e121a}
 .bubble{max-width:75%;padding:10px 12px;border-radius:12px;border:1px solid #2a3245;font-size:14px;line-height:1.45;white-space:pre-wrap}
 .msg{display:flex;margin:6px 0;gap:8px}
 .a .bubble{background:#1a1f2c}
@@ -28,7 +28,7 @@ display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff
 .input{display:flex;gap:8px;padding:10px;border-top:1px solid #1f2736;background:#0e121a}
 .input input{flex:1;border:none;border-radius:12px;background:#151a26;color:#fff;padding:10px 12px}
 .input button{border:none;border-radius:12px;background:#223045;color:#fff;padding:10px 12px}
-.quick{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;border-top:1px dashed #1f2736}
+.quick{display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;border-top:1px dashed #1f2736;background:#0e121a}
 .quick .pill{cursor:pointer}
 .small{font-size:12px;color:#9aa4b2}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -37,13 +37,15 @@ display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff
 <body>
 <div class="wrap">
   <div class="card">
-    <h1>嶙·贴身（气泡助理 v1.2·ext）</h1>
+    <h1>嶙·贴身（气泡助理 v1.2·ext·fix）</h1>
     <div id="ready">（JS 未就绪…如果一直是这行，说明脚本没跑）</div>
     <hr/>
     <div class="row">
       <div class="pill" id="btnPin">如何放到桌面</div>
       <div class="pill" id="btnExport">导出全部数据</div>
       <label class="pill">导入存档<input type="file" id="importFile" accept="application/json" style="display:none"/></label>
+      <div class="pill" id="btnJournal">记心情</div>
+      <div class="pill" id="btnViewJournal">看日记</div>
       <button class="btn" id="btnSettings">设置 / API Key</button>
       <span class="small" id="hintKey">离线模式</span>
     </div>
@@ -55,11 +57,11 @@ display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff
   </div>
 </div>
 
-<div id="fab" title="打开嶙">🖤</div>
+<div id="fab" title="打开/收起">🖤</div>
 
 <div id="panel">
-  <div class="head">
-    <div class="title">嶙·现在就听你</div>
+  <div class="head" title="点这里也可收起">
+    <div class="title">嶙·现在就听你（点此收起）</div>
   </div>
   <div id="msgs"></div>
   <div class="quick">

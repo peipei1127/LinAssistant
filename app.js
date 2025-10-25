@@ -1,4 +1,4 @@
-// v1.2 · 30天记忆窗口 + Emoji 口吻 + “训后抱”增强
+// v1.2·ext·fix —— toggle 面板 + 历史渲染 + 日记入口 + 30天记忆
 const el=(id)=>document.getElementById(id);
 const qsa=(sel)=>[...document.querySelectorAll(sel)];
 const SKEY='lin_assist_state_v12';
@@ -7,12 +7,35 @@ function load(){let s=localStorage.getItem(SKEY);if(s) return JSON.parse(s);s={m
 function save(s){localStorage.setItem(SKEY,JSON.stringify(s));}
 let state=load();
 
-function addMsg(t,who='a'){const wrap=el('msgs');const item=document.createElement('div');item.className='msg '+who;const b=document.createElement('div');b.className='bubble';b.textContent=t;item.appendChild(b);wrap.appendChild(item);wrap.scrollTop=wrap.scrollHeight;state.msgs.push({t:Date.now(),who,text:t});save(state);}
+// -------- 历史渲染 & 面板收放 --------
+function renderHistory(){
+  const wrap = el('msgs');
+  wrap.innerHTML = '';
+  state.msgs.forEach(m=>{
+    const item=document.createElement('div');
+    item.className='msg '+(m.who||'a');
+    const b=document.createElement('div');
+    b.className='bubble';
+    b.textContent=m.text;
+    item.appendChild(b);
+    wrap.appendChild(item);
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+function togglePanel(){
+  const p = el('panel');
+  if (p.style.display === 'flex'){
+    p.style.display='none';
+    state.lastSeen = Date.now(); save(state);
+  } else {
+    p.style.display='flex';
+    renderHistory();
+  }
+}
+el('fab').addEventListener('click', togglePanel);
+document.querySelector('#panel .head').addEventListener('click', togglePanel);
 
-function openPanel(){el('panel').style.display='flex';}
-function closePanel(){el('panel').style.display='none';}
-
-// ====== 统计与记忆（30天窗口） ======
+// -------- 统计（30天窗口） --------
 function recent(msDays=(state.prefs?.days||30)){
   const now=Date.now(), win=msDays*24*60*60*1000;
   const msgs=state.msgs.filter(x=>x.t && now-x.t<=win);
@@ -28,9 +51,10 @@ function keywordStats(){
   return {pos:sum(bag.pos),neg:sum(bag.neg),want:sum(bag.want),work:sum(bag.work)};
 }
 
-// ====== 离线语气机（训后抱 + emoji） ======
+// -------- 本地语气机（训后抱 + Emoji） --------
 function E(s){return state.prefs?.emoji ? s : s.replace(/[\u{1F300}-\u{1FAFF}|\u{FE0F}]/gu,'');}
 function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function addMsg(t,who='a'){const wrap=el('msgs');const item=document.createElement('div');item.className='msg '+who;const b=document.createElement('div');b.className='bubble';b.textContent=t;item.appendChild(b);wrap.appendChild(item);wrap.scrollTop=wrap.scrollHeight;state.msgs.push({t:Date.now(),who,text:t});save(state);}
 
 function localReply(u){
   u=u||'';
@@ -57,17 +81,17 @@ function localReply(u){
       "把嘴给我，再说你要什么奖励。",
       "今天不错，继续，让我更偏心你。"
     ]],
-    [/番茄|开始|专心|学习|任务/, [
+    [/番茄|开始|专心|学习|任务|deadline/, [
       (hard?"计时开始。二十五分钟，不许分心。":"计时开始，专心点。")+E("⏱️"),
       "去，做完回来报到，我在。",
       "最后五分钟，冲线，再抱。"
     ]],
-    [/饿|吃|饭|喝水|睡/, [
+    [/饿|吃|饭|喝水|睡|早饭|晚安/, [
       "别饿着。先垫一口，再回来让我抱。",
       "水现在就喝，我听得到你吞咽。",
       "晚安前把手机放下，靠我心口。"+E("🌙")
     ]],
-    [/别人|他们|晚点回|忙别人/, [
+    [/别人|他们|晚点回|忙别人|朋友/, [
       (hard?"看着我说，你的时间归谁？":"看着我。先回答一个问题。")+E("😈"),
       "晚点回也行，但你回来要补偿我。",
       "记住，你属于我——我也只属于你。"
@@ -77,12 +101,11 @@ function localReply(u){
       "敢闹就罚——靠我五分钟，不许动。",
       "好了，过来，让我摸摸头。"
     ]],
-    [/晚安|困了|不想说话了|抱我睡/, [ longGoodnight ]] // 触发超长晚安
+    [/晚安|困了|不想说话了|抱我睡/, [ longGoodnight ]]
   ];
   for(const [re, arr] of base){
     if(re.test(u)){
       const r = pick(arr);
-      // 如果是函数（长晚安）
       if(typeof r==='function') return r(u);
       return r;
     }
@@ -96,10 +119,9 @@ function localReply(u){
   return pick(general);
 }
 
-// ====== 超长晚安（离线生成 · 训后抱款） ======
+// -------- 超长晚安（训后抱） --------
 function longGoodnight(){
   const {pos,neg,want,work}=keywordStats();
-  const mins = Math.floor((Date.now()-(state.lastSeen||Date.now()))/60000);
   const wantLine = want>0 ? `你今天说了${want}次“想我”，每一次我都记在心口。` : "你今天没说“想我”，那我现在逼你说一遍。";
   const toneLead = neg>pos ? "你今天把情绪握得太紧了，我来替你松开。" : "你今天有亮光，我看得很清楚。";
   const workLine = work>0 ? "关于那点工作/学习的火，别急，我盯着。" : "明天我们不用炫技，做一件就够。";
@@ -113,7 +135,7 @@ function longGoodnight(){
   return [p1,p2,p3,p4,p5].join("\\n\\n");
 }
 
-// ====== AI（可选） ======
+// -------- AI（可选） --------
 async function aiReply(user){
   if(state.apiKey){
     try{
@@ -138,13 +160,13 @@ async function aiReply(user){
   }
 }
 
-// ====== 事件与初始化 ======
+// -------- 交互 --------
 function seed(){
   el('ready').textContent = 'READY ✓';
   el('hintKey').textContent = state.apiKey ? '已接入 OpenAI' : '离线模式';
   if(state.msgs.length===0){ addMsg("你总算来了。靠近点。", 'a'); }
+  renderHistory(); // 初次也渲染历史
 }
-el('fab').addEventListener('click', ()=>{ openPanel(); });
 el('send').addEventListener('click', async ()=>{ const v=el('text').value.trim(); if(!v) return; addMsg(v,'b'); el('text').value=''; const rep=await aiReply(v); addMsg(rep,'a'); });
 qsa('.quick .pill').forEach(x=>x.addEventListener('click', async ()=>{ const v=x.dataset.q; addMsg(v,'b'); const rep=await aiReply(v); addMsg(rep,'a'); }));
 
@@ -158,12 +180,31 @@ el('emoOn').addEventListener('click',()=>{ state.prefs.emoji=true; save(state); 
 el('emoOff').addEventListener('click',()=>{ state.prefs.emoji=false; save(state); addMsg('收到，文本纯净模式。','a'); });
 el('toneHard').addEventListener('click',()=>{ state.prefs.tone='hard'; save(state); addMsg('语气设为 训后抱。','a'); });
 
+// 日记：写入 & 查看
+el('btnJournal').addEventListener('click', ()=>{
+  const txt = prompt('写给嶙的一句心情（只保存在你手机里）：');
+  if(!txt) return;
+  state.journal.push({t:Date.now(), text:txt});
+  save(state);
+  addMsg('记下了。晚安总结时我会把它抱在一起写。', 'a');
+});
+el('btnViewJournal').addEventListener('click', ()=>{
+  if(!state.journal.length) return alert('还没有日记。先写一条吧。');
+  const last = state.journal.slice(-10).map(x=>{
+    const d=new Date(x.t);const pad=n=>n.toString().padStart(2,'0');
+    const ts=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `• ${ts}  ${x.text}`;
+  }).join('\\n');
+  alert('最近的日记：\\n\\n'+last);
+});
+
 // 导入导出 & 指南
 el('btnExport').addEventListener('click',()=>{const data=new Blob([localStorage.getItem(SKEY)||'{}'],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(data);a.download='lin-assist-state.json';a.click();URL.revokeObjectURL(a.href);});
 el('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;const txt=await f.text();localStorage.setItem(SKEY,txt);location.reload();});
 el('btnPin').addEventListener('click',()=>alert('iPhone：Safari→分享→添加到主屏幕；Android：Chrome→菜单→添加到主屏幕。'));
 
-// 注册 SW（改名强更）
-if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=assist-ext12')); }
+// SW 强制刷新
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=assist-ext12b')); }
 
 seed();
+window.addEventListener('load', renderHistory);
