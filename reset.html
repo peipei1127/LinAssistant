@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"/>
+<title>嶙·缓存清理器</title>
+<style>body{margin:0;background:#0f0f12;color:#e9edf7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto}
+.wrap{max-width:680px;margin:10vh auto;padding:24px;background:#141824;border:1px solid #2a3245;border-radius:16px}
+h1{margin:0 0 10px 0}code{background:#1b2030;padding:2px 6px;border-radius:6px}</style>
+<div class="wrap">
+<h1>正在为你清理老版本缓存…</h1>
+<p>我会删除 Service Worker、站点缓存并重新加载最新页面。</p>
+<pre id="log">开始…</pre>
+</div>
+<script>
+(async()=>{
+  const log = (t)=>{document.getElementById('log').textContent += "\n" + t;}
+  try{
+    if('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+      log("✓ 已注销 Service Worker");
+    }
+    if('caches' in window){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+      log("✓ 已清空 caches: " + JSON.stringify(keys));
+    }
+    log("✓ 本地清理完成，准备刷新");
+    setTimeout(()=>location.href="./?fresh="+Date.now(), 1000);
+  }catch(e){
+    log("× 清理时出错："+ e.message);
+  }
+})();
+</script>
